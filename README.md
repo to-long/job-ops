@@ -31,7 +31,7 @@ Your ironman suit for job hunting. You still apply to every job yourself. JobOps
 
 JobOps searches LinkedIn, Indeed, Glassdoor and 10+ job boards from one screen, rewrites your CV for each role, scores your fit, checks visa sponsorship status, and tracks every application in one place.
 
-It does not auto-apply. Recruiters can tell when applications are automated and it gets you blacklisted. JobOps gives you the speed without sacrificing quality.
+It won't auto-submit behind your back. Recruiters can tell when applications are fully automated and it gets you blacklisted. Instead, **Auto-fill** opens the application page in a server-side browser, intelligently detects the form (DOM + a screenshot read by your configured vision model), and fills it from your profile — then hands it back to you to review and press Apply yourself. You get the speed without sacrificing quality.
 
 <div align="center">
 
@@ -63,6 +63,7 @@ Open `http://localhost:3005` and follow the onboarding wizard. You'll be searchi
 | **Score** | AI ranks each job 0-100 against your profile |
 | **Tailor** | Generates a rewritten CV matched to each job description |
 | **Export** | Creates a polished PDF locally, or via [Reactive Resume](https://rxresu.me) |
+| **Auto-fill** | Opens the application page, detects the form (vision + DOM), and fills it from your profile for you to review and submit |
 | **Track** | Connects to Gmail and auto-detects interviews, offers, and rejections |
 
 ---

@@ -77,6 +77,7 @@ import {
   formatJobForWebhook,
   safeFilenamePart,
 } from "@/lib/utils";
+import { AutoFillDialog } from "./AutoFillDialog";
 import type { FilterTab } from "./constants";
 
 interface JobDetailPanelProps {
@@ -797,7 +798,7 @@ export const JobDetailPanel: React.FC<JobDetailPanelProps> = ({
                 </div>
               </div>
             </div>
-            <div className="grid gap-2 sm:grid-cols-3">
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
               <TooltipWhenDisabled
                 reason={pdfRegeneratingReason}
                 className="w-full"
@@ -820,6 +821,11 @@ export const JobDetailPanel: React.FC<JobDetailPanelProps> = ({
                 shortcut="o"
                 disabled={!hasJobListing}
                 onClick={handleJobListingOpened}
+              />
+              <AutoFillDialog
+                jobId={selectedJob.id}
+                disabled={!hasJobListing}
+                className="w-full"
               />
               <Button
                 variant={markAppliedIsPrimary ? "default" : "outline"}

@@ -4,6 +4,7 @@
 
 import { Router } from "express";
 import { authRouter } from "./routes/auth";
+import { autofillRouter } from "./routes/autofill";
 import { backupRouter } from "./routes/backup";
 import { databaseRouter } from "./routes/database";
 import { demoRouter } from "./routes/demo";
@@ -46,5 +47,6 @@ apiRouter.use("/tracer-links", tracerLinksRouter);
 apiRouter.use("/workspaces", workspacesRouter);
 apiRouter.use("/auth", authRouter);
 apiRouter.use("/workday", workdayRouter);
+apiRouter.use("/autofill", autofillRouter);
 apiRouter.use("/watchlist", watchlistRouter);
 apiRouter.use("/", extractorHealthRouter);
