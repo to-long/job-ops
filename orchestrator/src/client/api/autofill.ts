@@ -29,6 +29,17 @@ export async function updateAutofillField(
   return session;
 }
 
+/** Re-scans the live page for fields and re-fills (e.g. after a new step). */
+export async function rescanAutofill(
+  sessionId: string,
+): Promise<AutofillSession> {
+  const { session } = await fetchApi<{ session: AutofillSession }>(
+    `/autofill/${encodeURIComponent(sessionId)}/rescan`,
+    { method: "POST" },
+  );
+  return session;
+}
+
 /** Re-captures the live page screenshot. */
 export async function refreshAutofill(
   sessionId: string,

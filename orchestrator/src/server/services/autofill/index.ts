@@ -48,16 +48,8 @@ function resolveApplyUrl(applicationLink: string | null, jobUrl: string) {
   return candidate;
 }
 
-/**
- * Opens the job's application page in a server-side browser, detects the form,
- * maps it to the user's profile, fills what it can, and returns the staged
- * result for the user to review. Never submits.
- */
-export async function startAutofill(jobId: string): Promise<AutofillSession> {
-  const job = await getJobById(jobId);
-  if (!job) throw notFound("Job not found.");
-
-  const url = resolveApplyUrl(job.applicationLink, job.jobUrl);
+/** Loads the user's resume profile, flattened for filling. */
+async function loadProfileData(jobId: string) {
   const profile = await getProfile().catch((error) => {
     logger.warn("Autofill could not load profile", {
       jobId,
@@ -70,7 +62,49 @@ export async function startAutofill(jobId: string): Promise<AutofillSession> {
       "No resume profile is configured. Set up your base resume in Settings first.",
     );
   }
-  const profileData = buildProfileFillData(profile);
+  return buildProfileFillData(profile);
+}
+
+/**
+ * Scans the current page of a live session: detects the form, maps it to the
+ * profile via the vision model, fills it, and stores the staged review state.
+ * Shared by the initial scan and any user-triggered re-scan.
+ */
+async function scanAndFill(
+  sessionId: string,
+  page: Awaited<ReturnType<typeof createSession>>["page"],
+  profileData: ReturnType<typeof buildProfileFillData>,
+): Promise<AutofillState> {
+  const detected = await detectFields(page);
+  const preScreenshot = await captureScreenshot(page);
+  const fields = await mapFieldsToProfile(detected, profileData, preScreenshot);
+  await fillFields(page, fields);
+  const screenshot = await captureScreenshot(page);
+
+  const s: AutofillState = {
+    fields,
+    screenshot,
+    status: "ready",
+    message:
+      detected.length === 0
+        ? "No form fields were detected on this page. You may need to open the apply form first, then re-scan."
+        : undefined,
+  };
+  state.set(sessionId, s);
+  return s;
+}
+
+/**
+ * Opens the job's application page in a server-side browser, detects the form,
+ * maps it to the user's profile, fills what it can, and returns the staged
+ * result for the user to review. Never submits.
+ */
+export async function startAutofill(jobId: string): Promise<AutofillSession> {
+  const job = await getJobById(jobId);
+  if (!job) throw notFound("Job not found.");
+
+  const url = resolveApplyUrl(job.applicationLink, job.jobUrl);
+  const profileData = await loadProfileData(jobId);
 
   const sessionId = randomUUID();
   let session: Awaited<ReturnType<typeof createSession>>;
@@ -83,30 +117,33 @@ export async function startAutofill(jobId: string): Promise<AutofillSession> {
   }
 
   try {
-    const detected = await detectFields(session.page);
-    const preScreenshot = await captureScreenshot(session.page);
-    const fields = await mapFieldsToProfile(
-      detected,
-      profileData,
-      preScreenshot,
-    );
-    await fillFields(session.page, fields);
-    const screenshot = await captureScreenshot(session.page);
-
-    const s: AutofillState = {
-      fields,
-      screenshot,
-      status: "ready",
-      message:
-        detected.length === 0
-          ? "No form fields were detected on this page. You may need to open the apply form first."
-          : undefined,
-    };
-    state.set(sessionId, s);
+    const s = await scanAndFill(sessionId, session.page, profileData);
     return toSession(sessionId, jobId, url, s);
   } catch (error) {
     await closeSession(sessionId);
     throw upstreamError("Auto-fill failed while reading the form.", {
+      reason: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
+
+/**
+ * Re-scans the live page of an existing session. Useful after the application
+ * advances to a new step or reveals more fields — the user triggers this from
+ * the review dialog without reopening the browser.
+ */
+export async function rescanAutofill(
+  sessionId: string,
+): Promise<AutofillSession> {
+  const session = getSession(sessionId);
+  if (!session) throw notFound("Auto-fill session not found or expired.");
+
+  const profileData = await loadProfileData(session.jobId);
+  try {
+    const s = await scanAndFill(sessionId, session.page, profileData);
+    return toSession(sessionId, session.jobId, session.url, s);
+  } catch (error) {
+    throw upstreamError("Auto-fill failed while re-scanning the form.", {
       reason: error instanceof Error ? error.message : String(error),
     });
   }

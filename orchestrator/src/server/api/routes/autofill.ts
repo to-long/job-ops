@@ -3,6 +3,7 @@ import { fail, ok } from "@infra/http";
 import {
   closeAutofill,
   refreshAutofill,
+  rescanAutofill,
   startAutofill,
   submitAutofill,
   updateAutofillField,
@@ -59,6 +60,18 @@ autofillRouter.post(
   async (req: Request, res: Response) => {
     try {
       const session = await refreshAutofill(req.params.sessionId);
+      ok(res, { session });
+    } catch (error) {
+      fail(res, toAppError(error));
+    }
+  },
+);
+
+autofillRouter.post(
+  "/:sessionId/rescan",
+  async (req: Request, res: Response) => {
+    try {
+      const session = await rescanAutofill(req.params.sessionId);
       ok(res, { session });
     } catch (error) {
       fail(res, toAppError(error));

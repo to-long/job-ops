@@ -75,7 +75,6 @@ export function AutoFillDialog({
       setSession(result);
     } catch (error) {
       showErrorToast(error, "Auto-fill failed");
-      setOpen(false);
     } finally {
       setLoading(false);
     }
@@ -84,15 +83,27 @@ export function AutoFillDialog({
   const handleOpenChange = useCallback(
     (next: boolean) => {
       setOpen(next);
-      if (next) {
-        void start();
-      } else {
+      // Opening the dialog only shows the intro — the user explicitly triggers
+      // the web scan. Closing tears down the server-side browser session.
+      if (!next) {
         closeServerSession();
         setSession(null);
       }
     },
-    [start, closeServerSession],
+    [closeServerSession],
   );
+
+  const handleRescan = useCallback(async () => {
+    if (!session) return;
+    setBusy(true);
+    try {
+      setSession(await api.rescanAutofill(session.sessionId));
+    } catch (error) {
+      showErrorToast(error, "Couldn't re-scan the page");
+    } finally {
+      setBusy(false);
+    }
+  }, [session]);
 
   const handleFieldChange = useCallback((fieldId: string, value: string) => {
     setSession((prev) =>
@@ -178,18 +189,33 @@ export function AutoFillDialog({
                 Auto-fill application
               </DialogTitle>
               <DialogDescription>
-                JobOps opened the application page and filled what it could from
-                your profile. Review everything below — nothing is submitted
-                until you press Apply.
+                JobOps opens the application page in a browser, scans the form,
+                and fills it from your profile. Review everything — nothing is
+                submitted until you press Apply.
               </DialogDescription>
             </DialogHeader>
 
             {loading ? (
               <div className="flex flex-1 items-center justify-center gap-2 px-6 py-16 text-sm text-muted-foreground">
                 <Loader2 className="size-4 animate-spin" />
-                Opening the application page and filling the form…
+                Opening the application page and scanning the form…
               </div>
-            ) : session ? (
+            ) : !session ? (
+              <div className="flex flex-1 flex-col items-center justify-center gap-4 px-6 py-16 text-center">
+                <div className="flex size-12 items-center justify-center rounded-full border border-border/50 bg-muted/20">
+                  <Wand2 className="size-5 text-primary" />
+                </div>
+                <p className="max-w-sm text-sm text-muted-foreground">
+                  Scan the application page and auto-fill it from your profile.
+                  This opens the page in a server-side browser — it can take a
+                  few seconds.
+                </p>
+                <Button onClick={() => void start()}>
+                  <Sparkles className="size-3.5" />
+                  Scan &amp; auto-fill
+                </Button>
+              </div>
+            ) : (
               <div className="grid flex-1 grid-cols-1 gap-0 overflow-hidden md:grid-cols-2">
                 <div className="overflow-auto border-border/40 bg-muted/10 p-4 md:border-r">
                   {session.screenshot ? (
@@ -210,15 +236,26 @@ export function AutoFillDialog({
                     <span>
                       {filledCount} of {session.fields.length} fields filled
                     </span>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => void handleRefresh()}
-                      disabled={busy}
-                    >
-                      <RefreshCcw className="size-3.5" />
-                      Refresh preview
-                    </Button>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => void handleRescan()}
+                        disabled={busy}
+                      >
+                        <Wand2 className="size-3.5" />
+                        Re-scan
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => void handleRefresh()}
+                        disabled={busy}
+                      >
+                        <RefreshCcw className="size-3.5" />
+                        Refresh
+                      </Button>
+                    </div>
                   </div>
 
                   <div className="flex-1 space-y-3 overflow-auto px-4 py-3">
@@ -297,10 +334,6 @@ export function AutoFillDialog({
                     </Button>
                   </div>
                 </div>
-              </div>
-            ) : (
-              <div className="flex flex-1 items-center justify-center px-6 py-16 text-sm text-muted-foreground">
-                Couldn't load the application form.
               </div>
             )}
           </div>
